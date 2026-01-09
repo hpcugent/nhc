@@ -1,0 +1,37 @@
+# shellcheck shell=bash
+
+# Run the nvidia gpu memcheck once for a specific GPU
+# See HPC-12516
+# This check sets a lockfile (for the specific GPU) in /run/vsc, which resets
+# after boot, so the check will run only once when slurm starts (typically
+# right after boot, but if slurm doesn't start for some reason, this will only
+# happen when/if slurm starts eventually).
+# Removing the lockfile will cause the check to run again.
+# Note that we usually don't want to run this check when jobs are running on
+# the GPU, to avoid any interference (even though the memtest uses very little
+# resources).
+
+# example config:
+# * || run_gpu_memcheck_once 2
+function run_gpu_memcheck_once() {
+    local LOCKDIR LOCKFILE GPU
+
+    GPU=$1
+
+    # shipped by slurm-prepilogue
+    GPU_MEMTEST=/usr/libexec/slurm/prolog/memtestG80
+    LOCKDIR=/run/vsc
+    LOCKFILE=${LOCKDIR}/nhc-gpu-${GPU}-memtest-done
+
+    if [ -e "$LOCKFILE" ];
+    then
+        return 0
+    fi
+
+    # We don't care about the result of this test: if it triggers an error, the
+    # check_gpu_reset nhc check will pick it up
+    $GPU_MEMTEST --gpu "$GPU" 1 1 > /dev/null 2>&1
+
+    mkdir -p "$LOCKDIR"
+    touch "$LOCKFILE"
+}
