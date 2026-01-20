@@ -28,9 +28,11 @@ function run_gpu_memcheck_once() {
         return 0
     fi
 
-    # We don't care about the result of this test: if it triggers an error, the
-    # check_gpu_reset nhc check will pick it up
     $GPU_MEMTEST --gpu "$GPU" 1 1 > /dev/null 2>&1
+    ec=$?
+    if [ $ec -ne 0 ]; then
+        die 1 "GPU memtest on GPU $GPU FAILED"
+    fi
 
     mkdir -p "$LOCKDIR"
     touch "$LOCKFILE"
